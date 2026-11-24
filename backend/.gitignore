@@ -1,0 +1,7 @@
+uploads/profiles/*
+!uploads/profiles/.gitkeep
+uploads/cvs/*
+!uploads/cvs/.gitkeep
+*.log
+.DS_Store
+

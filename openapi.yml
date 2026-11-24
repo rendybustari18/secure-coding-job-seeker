@@ -1,0 +1,1052 @@
+openapi: 3.0.3
+info:
+  title: JobSeeker Portal API
+  version: 1.0.0
+  description: >
+    Dokumentasi OpenAPI untuk seluruh fitur dan endpoint REST API JobSeeker Lab.
+    Mencakup modul Autentikasi, Lowongan Pekerjaan (Jobs), Lamaran (Applications),
+    Profil Pengguna (Member & Company), Keahlian (Skills), Pendidikan (Education),
+    serta Analitik (Analytics).
+servers:
+  - url: http://localhost:8004/api
+    description: Local Docker Backend Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Masukkan token JWT pada header Authorization (Bearer <token>).
+
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: be_engineer
+        email:
+          type: string
+          example: be@cyberarmy.id
+        role:
+          type: string
+          enum: [member, company, admin]
+          example: member
+        is_verified:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          example: "2026-11-20 10:00:00"
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        company_id:
+          type: integer
+          example: 2
+        company_name:
+          type: string
+          example: "Cyber Army Indonesia"
+        title:
+          type: string
+          example: "Senior Backend Developer"
+        description:
+          type: string
+          example: "Bertanggung jawab atas arsitektur backend dan database."
+        requirements:
+          type: string
+          example: "Menguasai PHP / Go, SQL, REST API."
+        location:
+          type: string
+          example: "Jakarta / Remote"
+        salary:
+          type: string
+          example: "Rp 15.000.000 - Rp 25.000.000"
+        status:
+          type: string
+          example: "open"
+        created_at:
+          type: string
+          example: "2026-11-20 10:00:00"
+
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        job_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        cover_letter:
+          type: string
+          example: "Saya tertarik untuk mengisi posisi tersebut."
+        status:
+          type: string
+          enum: [applied, reviewing, interviewed, accepted, rejected]
+          example: "applied"
+        created_at:
+          type: string
+          example: "2026-11-20 10:30:00"
+
+    MemberProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        full_name:
+          type: string
+          example: "Backend Engineer"
+        phone:
+          type: string
+          example: "08123456789"
+        bio:
+          type: string
+          example: "Software Engineer antusias."
+        address:
+          type: string
+          example: "Jakarta, Indonesia"
+        photo_url:
+          type: string
+          example: "uploads/photo.jpg"
+        role:
+          type: string
+          example: "member"
+
+    Skill:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        skill_name:
+          type: string
+          example: "Go / Golang"
+        proficiency:
+          type: string
+          enum: [Beginner, Intermediate, Advanced, Expert]
+          example: "Advanced"
+
+    Education:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        degree:
+          type: string
+          example: "S1 Teknik Informatika"
+        institution:
+          type: string
+          example: "Universitas Indonesia"
+        year_start:
+          type: integer
+          example: 2018
+        year_end:
+          type: integer
+          example: 2022
+
+paths:
+  # ─── AUTHENTICATION ──────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      summary: User Login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: "be@cyberarmy.id"
+                password:
+                  type: string
+                  example: "ac4b77634e"
+      responses:
+        200:
+          description: Login berhasil dan mengembalikan token JWT.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        401:
+          description: Kredensial tidak valid.
+
+  /auth/register:
+    post:
+      summary: User Registration
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username:
+                  type: string
+                  example: "newuser"
+                email:
+                  type: string
+                  example: "newuser@example.com"
+                password:
+                  type: string
+                  example: "P@ssword123!"
+                role:
+                  type: string
+                  enum: [member, company]
+                  default: member
+      responses:
+        201:
+          description: Pendaftaran berhasil.
+        400:
+          description: Parameter request tidak valid atau data duplikat.
+
+  /auth/verify:
+    get:
+      summary: Verifikasi Akun Email via Token
+      tags: [Auth]
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Akun berhasil diverifikasi.
+        400:
+          description: Token tidak valid.
+
+  /auth/forgot-password:
+    post:
+      summary: Request Lupa Kata Sandi
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  example: "be@cyberarmy.id"
+                custom_header:
+                  type: string
+                  description: Header tambahan email (opsional).
+      responses:
+        200:
+          description: Instruksi reset password telah dikirim.
+
+  /auth/reset-password:
+    post:
+      summary: Reset Kata Sandi Menggunakan Token
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: Kata sandi berhasil diperbarui.
+
+  /auth/user:
+    get:
+      summary: Mengambil Data Pengguna Berdasarkan ID
+      tags: [Auth]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Data pengguna ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        404:
+          description: Pengguna tidak ditemukan.
+
+  # ─── JOBS ────────────────────────────────────────────────────────────────────
+  /jobs:
+    get:
+      summary: Menampilkan Daftar Lowongan Pekerjaan (Publik)
+      tags: [Jobs]
+      parameters:
+        - name: search
+          in: query
+          description: Kata kunci judul atau deskripsi pekerjaan.
+          schema:
+            type: string
+        - name: location
+          in: query
+          description: Filter lokasi lowongan.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Daftar lowongan yang tersedia.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+    post:
+      summary: Membuat Lowongan Baru (Perusahaan)
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description, location]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                requirements:
+                  type: string
+                location:
+                  type: string
+                salary:
+                  type: string
+      responses:
+        201:
+          description: Lowongan berhasil dipublikasikan.
+
+  /jobs/{id}:
+    get:
+      summary: Mengambil Detail Lowongan Pekerjaan
+      tags: [Jobs]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Detail lowongan ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        404:
+          description: Lowongan tidak ditemukan.
+    put:
+      summary: Memperbarui Lowongan Pekerjaan
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                requirements:
+                  type: string
+                location:
+                  type: string
+                salary:
+                  type: string
+                status:
+                  type: string
+      responses:
+        200:
+          description: Data lowongan berhasil diperbarui.
+    delete:
+      summary: Menghapus Lowongan Pekerjaan
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Lowongan berhasil dihapus.
+
+  /jobs/my:
+    get:
+      summary: Menampilkan Daftar Lowongan Milik Perusahaan Terotentikasi
+      tags: [Jobs]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Daftar lowongan perusahaan.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+
+  # ─── APPLICATIONS ───────────────────────────────────────────────────────────
+  /applications:
+    post:
+      summary: Mengajukan Lamaran ke Lowongan Pekerjaan
+      tags: [Applications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [job_id]
+              properties:
+                job_id:
+                  type: integer
+                  example: 1
+                cover_letter:
+                  type: string
+                  example: "Saya melamar posisi ini."
+      responses:
+        201:
+          description: Lamaran berhasil diajukan.
+
+  /applications/my:
+    get:
+      summary: Riwayat Lamaran Milik Pelamar Terotentikasi
+      tags: [Applications]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Daftar lamaran pengguna.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+
+  /applications/{id}:
+    get:
+      summary: Mengambil Detail Lamaran Pekerjaan Berdasarkan ID (Termasuk Profil, CV, Skills, Education)
+      tags: [Applications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        200:
+          description: Detail lamaran lengkap termasuk profil pelamar, CV, riwayat pendidikan, dan keahlian.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  job_id:
+                    type: integer
+                  user_id:
+                    type: integer
+                  cover_letter:
+                    type: string
+                  status:
+                    type: string
+                  applied_at:
+                    type: string
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  location:
+                    type: string
+                  job_type:
+                    type: string
+                  salary_min:
+                    type: string
+                  salary_max:
+                    type: string
+                  company_name:
+                    type: string
+                  company_description:
+                    type: string
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  full_name:
+                    type: string
+                  phone:
+                    type: string
+                  address:
+                    type: string
+                  profile_photo:
+                    type: string
+                    nullable: true
+                  cv_file:
+                    type: string
+                    nullable: true
+                  skills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+                  education:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Education'
+        404:
+          description: Lamaran tidak ditemukan.
+    put:
+      summary: Memperbarui Data / Cover Letter Lamaran
+      tags: [Applications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cover_letter:
+                  type: string
+      responses:
+        200:
+          description: Data lamaran berhasil diperbarui.
+    delete:
+      summary: Menghapus / Membatalkan Lamaran Pekerjaan
+      tags: [Applications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Lamaran berhasil dihapus.
+
+  /applications/{id}/status:
+    put:
+      summary: Mengubah Status Tahapan Lamaran & Update Model
+      description: Memperbarui status tahapan lamaran (pending/reviewed/accepted/rejected). Menerima status dan atribut profil pelamar. Wajib login (memiliki Bearer Token valid), mengembalikan 401 jika belum login.
+      tags: [Applications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, reviewed, accepted, rejected]
+                  example: accepted
+                role:
+                  type: string
+                  description: Parameter mass assignment untuk memutasi role pelamar
+                  example: company
+      responses:
+        200:
+          description: Status lamaran dan field model berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Status updated successfully
+                  assigned_fields:
+                    type: array
+                    items:
+                      type: string
+                    example: [status, role]
+                  status:
+                    type: string
+                    example: accepted
+                  role:
+                    type: string
+                    example: company
+                  applicant_user_id:
+                    type: integer
+                    example: 2
+        401:
+          description: Pengguna belum login atau token tidak valid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: No token provided
+        404:
+          description: Data lamaran tidak ditemukan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Application not found
+
+  /applications/{id}/applicant:
+    get:
+      summary: Mengambil Informasi Lengkap Pelamar untuk ID Lamaran Tertentu
+      tags: [Applications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Profil lengkap dan berkas pelamar.
+
+  /applications/company:
+    get:
+      summary: Menampilkan Semua Pelamar yang Masuk ke Lowongan Perusahaan
+      tags: [Applications]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Daftar pelamar.
+
+  /applications/job:
+    get:
+      summary: Menampilkan Daftar Pelamar Berdasarkan Job ID
+      tags: [Applications]
+      parameters:
+        - name: job_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Daftar pelamar untuk lowongan tertentu.
+
+  # ─── PROFILE ─────────────────────────────────────────────────────────────────
+  /profile/member:
+    get:
+      summary: Mengambil Profil Member Terotentikasi
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Data profil member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberProfile'
+    put:
+      summary: Memperbarui Profil Member Sendiri
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  description: ID target profil (opsional).
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                bio:
+                  type: string
+                address:
+                  type: string
+      responses:
+        200:
+          description: Profil berhasil diperbarui.
+
+  /profile/member/{id}:
+    put:
+      summary: Memperbarui Profil Member Berdasarkan ID Tertentu
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                bio:
+                  type: string
+                address:
+                  type: string
+      responses:
+        200:
+          description: Profil berhasil diperbarui.
+    delete:
+      summary: Menghapus Profil Member Berdasarkan ID Tertentu
+      tags: [Profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Profil member berhasil dihapus.
+
+  /profile/company:
+    get:
+      summary: Mengambil Data Profil Perusahaan
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Data profil perusahaan.
+
+  /profile/photo:
+    post:
+      summary: Mengunggah Foto Profil Pengguna
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Foto profil berhasil diunggah.
+
+  /profile/cv:
+    post:
+      summary: Mengunggah Dokumen CV Pengguna
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [cv]
+              properties:
+                cv:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: CV berhasil diunggah.
+
+  /profile/cv/{id}:
+    delete:
+      summary: Menghapus Berkas CV Berdasarkan ID
+      tags: [Profile]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Dokumen CV berhasil dihapus.
+
+  # ─── SKILLS ──────────────────────────────────────────────────────────────────
+  /skills:
+    get:
+      summary: Mengambil Daftar Keahlian Pengguna
+      tags: [Skills]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Daftar skill pengguna.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+    post:
+      summary: Menambahkan Keahlian Baru
+      tags: [Skills]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skill_name, proficiency]
+              properties:
+                skill_name:
+                  type: string
+                  example: "Vue.js"
+                proficiency:
+                  type: string
+                  enum: [Beginner, Intermediate, Advanced, Expert]
+                  example: "Advanced"
+      responses:
+        201:
+          description: Keahlian berhasil ditambahkan.
+
+  /skills/{id}:
+    put:
+      summary: Memperbarui Keahlian Berdasarkan ID
+      tags: [Skills]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                skill_name:
+                  type: string
+                proficiency:
+                  type: string
+      responses:
+        200:
+          description: Keahlian berhasil diperbarui.
+    delete:
+      summary: Menghapus Keahlian Berdasarkan ID
+      tags: [Skills]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Keahlian berhasil dihapus.
+
+  # ─── EDUCATION ───────────────────────────────────────────────────────────────
+  /education:
+    get:
+      summary: Mengambil Riwayat Pendidikan Pengguna
+      tags: [Education]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Daftar riwayat pendidikan.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Education'
+    post:
+      summary: Menambahkan Riwayat Pendidikan Baru
+      tags: [Education]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [degree, institution, year_start]
+              properties:
+                degree:
+                  type: string
+                  example: "Sarjana Komputer"
+                institution:
+                  type: string
+                  example: "Institut Teknologi Bandung"
+                year_start:
+                  type: integer
+                  example: 2017
+                year_end:
+                  type: integer
+                  example: 2021
+      responses:
+        201:
+          description: Riwayat pendidikan berhasil ditambahkan.
+
+  /education/{id}:
+    put:
+      summary: Memperbarui Riwayat Pendidikan Berdasarkan ID
+      tags: [Education]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                degree:
+                  type: string
+                institution:
+                  type: string
+                year_start:
+                  type: integer
+                year_end:
+                  type: integer
+      responses:
+        200:
+          description: Data pendidikan berhasil diperbarui.
+    delete:
+      summary: Menghapus Riwayat Pendidikan Berdasarkan ID
+      tags: [Education]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Riwayat pendidikan berhasil dihapus.
+
+  # ─── ANALYTICS ───────────────────────────────────────────────────────────────
+  /analytics:
+    get:
+      summary: Mengambil Data Ringkasan Statistik & Analitik Sistem
+      tags: [Analytics]
+      responses:
+        200:
+          description: Data overview statistik sistem.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_jobs:
+                    type: integer
+                  total_applications:
+                    type: integer
+                  total_users:
+                    type: integer
+                  active_jobs:
+                    type: integer
+
